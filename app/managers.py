@@ -1,15 +1,28 @@
 from pydantic import PositiveInt
+from sqlalchemy.orm import Session
 
-from app.config import db_session
-from app.models.users import UserStatus, UserNotifySettings
+from app.models.users.user_notify_settings import UserNotifySettings
+from app.models.users.user_status import UserStatus
 
 
-def reset_user(user: UserStatus, user_settings: UserNotifySettings, user_telegram_id: PositiveInt) -> None:
-    with db_session() as session:
-        user.authenticated = False
-        user.save()
-        user_settings.fill(user_telegram_id=user_telegram_id)
-        user_settings.save()
+def reset_user(
+    db: Session,
+    user: UserStatus,
+    user_settings: UserNotifySettings,
+    user_telegram_id: PositiveInt,
+    *,
+    refresh_after_commit: bool = False,
+) -> None:
+    """
+    Transactional function for reset user status and user notify settings.
+    """
 
-        session.refresh(user)
-        session.refresh(user_settings)
+    user.authenticated = False
+    db.add(user)
+    user_settings.fill(user_telegram_id=user_telegram_id)
+    db.add(user_settings)
+    db.commit()
+
+    if refresh_after_commit:
+        db.refresh(user)
+        db.refresh(user_settings)
