@@ -262,7 +262,7 @@ class TestModels:
         from app.models.users.user_status import UserStatus
 
         def reset_user_with_raise(
-            db: Session,
+            db_session_: Session,
             user: UserStatus,
             user_settings: UserNotifySettings,
             user_telegram_id: PositiveInt,
@@ -271,16 +271,16 @@ class TestModels:
             Transactional function for reset user status and user notify settings.
             """
 
-            with db.begin():
+            with db_session_.begin():
                 user.authenticated = False
-                db.add(user)
+                db_session_.add(user)
                 user_settings.fill(user_telegram_id=user_telegram_id)
-                db.add(user_settings)
+                db_session_.add(user_settings)
                 raise Exception("Test exception")
-                db.commit()
+                db_session_.commit()
 
-            db.refresh(user)
-            db.refresh(user_settings)
+            db_session.refresh(user)
+            db_session.refresh(user_settings)
 
         # Create a test UserStatus object
         test_user_status = UserStatus(

@@ -25,9 +25,9 @@ class AbstractBaseModel(DeclarativeModelBase):
 
     @classmethod
     @final
-    def delete(cls, db: Session, **query) -> None:
-        db.query(cls).filter_by(**query).delete()
-        db.commit()
+    def delete(cls, db_session: Session, **query) -> None:
+        db_session.query(cls).filter_by(**query).delete()
+        db_session.commit()
 
     @abstractmethod
     def fill(self, *args, **kwargs) -> None:
