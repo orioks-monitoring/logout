@@ -6,7 +6,7 @@ from app.models.base import AbstractBaseModel
 class UserStatus(AbstractBaseModel):
     __tablename__ = "user_status"
 
-    user_telegram_id = Column(Integer, nullable=False, unique=True)
+    user_telegram_id = Column(Integer, nullable=False, unique=True, index=True)
     agreement_accepted = Column(Boolean, nullable=False, default=False)
     authenticated = Column(Boolean, nullable=False, default=False)
     login_attempt_count = Column(Integer, nullable=False, default=0)
