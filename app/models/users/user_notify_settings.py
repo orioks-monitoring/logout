@@ -6,7 +6,7 @@ from app.models.base import AbstractBaseModel
 class UserNotifySettings(AbstractBaseModel):
     __tablename__ = "user_notify_settings"
 
-    user_telegram_id = Column(Integer, nullable=False, unique=True)
+    user_telegram_id = Column(Integer, nullable=False, unique=True, index=True)
     marks = Column(Boolean, nullable=False, default=True)
     news = Column(Boolean, nullable=False, default=True)
     homeworks = Column(Boolean, nullable=False, default=True)
