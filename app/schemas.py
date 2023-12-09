@@ -1,7 +1,7 @@
 from pydantic import BaseModel, PositiveInt
 
 
-class User(BaseModel):
+class UserStatusSchema(BaseModel):
     user_telegram_id: PositiveInt
     agreement_accepted: bool
     authenticated: bool
@@ -11,18 +11,14 @@ class User(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class UserNotify(BaseModel):
+class UserStatusAuthenticatedSchema(BaseModel):
     user_telegram_id: PositiveInt
-    marks: bool
-    news: bool
-    homeworks: bool
-    requests: bool
+    authenticated: bool
 
     model_config = {"from_attributes": True}
 
 
-class UserAndNotify(BaseModel):
-    user: User
-    notify: UserNotify
+class UserLoginBodySchema(BaseModel):
+    cookies: dict[str, str]
 
     model_config = {"from_attributes": True}

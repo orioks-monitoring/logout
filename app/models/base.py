@@ -4,7 +4,7 @@ from typing import Optional, final
 from sqlalchemy import Column, DateTime, Integer, func
 from sqlalchemy.orm import Session
 
-from app.models.database import DeclarativeModelBase
+from app.models.sql_database import DeclarativeModelBase
 
 
 class AbstractBaseModel(DeclarativeModelBase):
@@ -32,6 +32,15 @@ class AbstractBaseModel(DeclarativeModelBase):
     @abstractmethod
     def fill(self, *args, **kwargs) -> None:
         pass
+
+    # @classmethod
+    # @final
+    # def create(cls, db_session: Session, with_commit: bool = True, *args, **kwargs) -> "AbstractBaseModel":
+    #     instance = cls(*args, **kwargs)
+    #     db_session.add(instance)
+    #     if with_commit:
+    #         db_session.commit()
+    #     return instance
 
     @final
     def as_dict(self) -> dict:

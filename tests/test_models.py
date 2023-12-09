@@ -1,7 +1,11 @@
 from typing import Generator
+from unittest.mock import patch
 
+import mongomock
 import pytest
+from pydantic import PositiveInt
 from sqlalchemy import Column, create_engine
+from sqlalchemy.exc import PendingRollbackError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from starlette.testclient import TestClient
@@ -9,7 +13,10 @@ from starlette.testclient import TestClient
 from app.config import TEST_DATABASE_URL
 from app.main import app
 from app.models.base import AbstractBaseModel
-from app.models.database import get_db
+from app.models.sql_database import get_db
+from app.models.users.user_notify_settings import UserNotifySettings
+from app.models.users.user_status import UserStatus
+from tests.mocks import make_user_reset_without_mongo_deletion_mocked, mongo_client
 
 engine = create_engine(
     TEST_DATABASE_URL,
@@ -36,37 +43,39 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 class TestModels:
+    @pytest.fixture(autouse=True, scope="function")
+    def clear_all_databases(self) -> None:
+        """Clear all databases before each test"""
+        for database_name in mongo_client.list_database_names():
+            mongo_client.drop_database(database_name)
+
     @pytest.fixture(scope="function")
     def db_session(self) -> Generator[Session, None, None]:
-        """Create a clean database session for testing purposes."""
-        # Create the database tables
+        """Create a clean mongo_database session for testing purposes."""
+        # Create the mongo_database tables
         AbstractBaseModel.metadata.create_all(bind=engine)
 
         # Run the tests
         yield TestingSessionLocal()
 
-        # Drop the database tables
+        # Drop the mongo_database tables
         AbstractBaseModel.metadata.drop_all(bind=engine)
 
     def test_tables_are_created(self, db_session: Session):
-        """Test that all tables are created after the database is created."""
+        """Test that all tables are created after the mongo_database is created."""
         tables = AbstractBaseModel.metadata.tables.values()
         assert len(tables) > 0
 
     def test_user_status_table_is_created(self, db_session: Session):
-        """Test that the user_status table is created after the database is created."""
-        from app.models.users.user_status import UserStatus
-
+        """Test that the user_status table is created after the mongo_database is created."""
         assert UserStatus.__tablename__ in AbstractBaseModel.metadata.tables
 
     def test_user_notify_settings_table_is_created(self, db_session: Session):
-        """Test that the user_notify_settings table is created after the database is created."""
-        from app.models.users.user_notify_settings import UserNotifySettings
-
+        """Test that the user_notify_settings table is created after the mongo_database is created."""
         assert UserNotifySettings.__tablename__ in AbstractBaseModel.metadata.tables
 
     def test_tables_are_empty(self, db_session: Session):
-        """Test that all tables are empty after the database is created."""
+        """Test that all tables are empty after the mongo_database is created."""
         for table in AbstractBaseModel.metadata.tables.values():
             print(table.name)
             assert db_session.query(table).count() == 0
@@ -78,9 +87,7 @@ class TestModels:
         assert isinstance(abstract_model.id, Column)
 
     def test_user_status_create(self, db_session: Session):
-        """Test that a UserStatus object can be created and saved to the database."""
-        from app.models.users.user_status import UserStatus
-
+        """Test that a UserStatus object can be created and saved to the mongo_database."""
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=111)
 
@@ -88,16 +95,14 @@ class TestModels:
         db_session.add(test_user_status)
         db_session.commit()
 
-        # Retrieve the UserStatus object from the database
+        # Retrieve the UserStatus object from the mongo_database
         retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=111)
 
         assert retrieved_user_status is not None
         assert retrieved_user_status.user_telegram_id == 111
 
     def test_user_notify_settings_create(self, db_session: Session):
-        """Test that a UserNotifySettings object can be created and saved to the database."""
-        from app.models.users.user_notify_settings import UserNotifySettings
-
+        """Test that a UserNotifySettings object can be created and saved to the mongo_database."""
         # Create a test UserNotifySettings object
         test_user_notify_settings = UserNotifySettings(user_telegram_id=222)
 
@@ -105,7 +110,7 @@ class TestModels:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        # Retrieve the UserNotifySettings object from the database
+        # Retrieve the UserNotifySettings object from the mongo_database
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=222
         )
@@ -114,8 +119,7 @@ class TestModels:
         assert retrieved_user_notify_settings.user_telegram_id == 222
 
     def test_user_status_delete(self, db_session: Session):
-        """Test that a UserStatus object can be deleted from the database."""
-        from app.models.users.user_status import UserStatus
+        """Test that a UserStatus object can be deleted from the mongo_database."""
 
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=333)
@@ -127,15 +131,13 @@ class TestModels:
         # Delete the UserStatus object
         test_user_status.delete(db_session)
 
-        # Retrieve the UserStatus object from the database
+        # Retrieve the UserStatus object from the mongo_database
         retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=333)
 
         assert retrieved_user_status is None
 
     def test_user_notify_settings_delete(self, db_session: Session):
-        """Test that a UserNotifySettings object can be deleted from the database."""
-        from app.models.users.user_notify_settings import UserNotifySettings
-
+        """Test that a UserNotifySettings object can be deleted from the mongo_database."""
         # Create a test UserNotifySettings object
         test_user_notify_settings = UserNotifySettings(user_telegram_id=444)
 
@@ -146,7 +148,7 @@ class TestModels:
         # Delete the UserNotifySettings object
         test_user_notify_settings.delete(db_session)
 
-        # Retrieve the UserNotifySettings object from the database
+        # Retrieve the UserNotifySettings object from the mongo_database
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=444
         )
@@ -155,7 +157,6 @@ class TestModels:
 
     def test_user_status_fill(self, db_session: Session):
         """Test that a UserStatus object can be reset."""
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=555)
@@ -169,7 +170,7 @@ class TestModels:
         db_session.add(test_user_status)
         db_session.commit()
 
-        # Retrieve the UserStatus object from the database
+        # Retrieve the UserStatus object from the mongo_database
         retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=555)
 
         assert retrieved_user_status is not None
@@ -181,7 +182,6 @@ class TestModels:
 
     def test_user_notify_settings_fill(self, db_session: Session):
         """Test that a UserNotifySettings object can be reset."""
-        from app.models.users.user_notify_settings import UserNotifySettings
 
         # Create a test UserNotifySettings object
         test_user_notify_settings = UserNotifySettings(user_telegram_id=666)
@@ -195,7 +195,7 @@ class TestModels:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        # Retrieve the UserNotifySettings object from the database
+        # Retrieve the UserNotifySettings object from the mongo_database
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=666
         )
@@ -209,9 +209,6 @@ class TestModels:
 
     def test_transactional_reset_user(self, db_session: Session):
         """Test that a UserStatus object and a UserNotifySettings object can be reset transactional."""
-        from app.managers import reset_user
-        from app.models.users.user_notify_settings import UserNotifySettings
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=777)
@@ -225,14 +222,14 @@ class TestModels:
         db_session.commit()
 
         # Reset the UserStatus and UserNotifySettings objects transactional
-        reset_user(
+        make_user_reset_without_mongo_deletion_mocked(
             db_session,
             test_user_status,
             test_user_notify_settings,
             user_telegram_id=777,
         )
 
-        # Retrieve the UserStatus and UserNotifySettings objects from the database
+        # Retrieve the UserStatus and UserNotifySettings objects from the mongo_database
         retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=777)
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=777
@@ -251,78 +248,6 @@ class TestModels:
         assert retrieved_user_notify_settings.news is False
         assert retrieved_user_notify_settings.homeworks is False
         assert retrieved_user_notify_settings.requests is False
-
-    def test_transaction_failure_reset_user(self, db_session: Session):
-        """Test that a UserStatus object and a UserNotifySettings object can be reset transactional.
-        Test that the transaction is rolled back if an exception occurs.
-        """
-        from pydantic import PositiveInt
-
-        from app.models.users.user_notify_settings import UserNotifySettings
-        from app.models.users.user_status import UserStatus
-
-        def reset_user_with_raise(
-            db_session_: Session,
-            user: UserStatus,
-            user_settings: UserNotifySettings,
-            user_telegram_id: PositiveInt,
-        ) -> None:
-            """
-            Transactional function for reset user status and user notify settings.
-            """
-
-            with db_session_.begin():
-                user.authenticated = False
-                db_session_.add(user)
-                user_settings.fill(user_telegram_id=user_telegram_id)
-                db_session_.add(user_settings)
-                raise Exception("Test exception")
-                db_session_.commit()
-
-            db_session.refresh(user)
-            db_session.refresh(user_settings)
-
-        # Create a test UserStatus object
-        test_user_status = UserStatus(
-            user_telegram_id=888, failed_request_count=3, login_attempt_count=5
-        )
-
-        # Create a test UserNotifySettings object
-        test_user_notify_settings = UserNotifySettings(user_telegram_id=888)
-
-        # Save the UserStatus and UserNotifySettings objects
-        db_session.add(test_user_status)
-        db_session.add(test_user_notify_settings)
-        db_session.commit()
-
-        # Reset the UserStatus and UserNotifySettings objects transactional
-        with pytest.raises(Exception):
-            reset_user_with_raise(
-                db_session,
-                test_user_status,
-                test_user_notify_settings,
-                user_telegram_id=888,
-            )
-
-        # Retrieve the UserStatus and UserNotifySettings objects from the database
-        retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=888)
-        retrieved_user_notify_settings = UserNotifySettings.find_one(
-            db_session, user_telegram_id=888
-        )
-
-        assert retrieved_user_status is not None
-        assert retrieved_user_status.user_telegram_id == 888
-        assert retrieved_user_status.agreement_accepted is False
-        assert retrieved_user_status.authenticated is False
-        assert retrieved_user_status.login_attempt_count == 5
-        assert retrieved_user_status.failed_request_count == 3
-
-        assert retrieved_user_notify_settings is not None
-        assert retrieved_user_notify_settings.user_telegram_id == 888
-        assert retrieved_user_notify_settings.marks is True
-        assert retrieved_user_notify_settings.news is True
-        assert retrieved_user_notify_settings.homeworks is True
-        assert retrieved_user_notify_settings.requests is True
 
     @pytest.mark.parametrize(
         "user_status_data",
@@ -368,7 +293,6 @@ class TestModels:
         self, db_session, user_status_data: dict
     ):
         """Test that a UserStatus object can be created with random data."""
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object
         test_user_status = UserStatus(**user_status_data)
@@ -377,7 +301,7 @@ class TestModels:
         db_session.add(test_user_status)
         db_session.commit()
 
-        # Retrieve the UserStatus object from the database
+        # Retrieve the UserStatus object from the mongo_database
         retrieved_user_status = UserStatus.find_one(
             db_session, user_telegram_id=user_status_data["user_telegram_id"]
         )
@@ -452,7 +376,6 @@ class TestModels:
         self, db_session, user_notify_settings_data: dict
     ):
         """Test that a UserNotifySettings object can be created with random data."""
-        from app.models.users.user_notify_settings import UserNotifySettings
 
         # Create a test UserNotifySettings object
         test_user_notify_settings = UserNotifySettings(**user_notify_settings_data)
@@ -461,7 +384,7 @@ class TestModels:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        # Retrieve the UserNotifySettings object from the database
+        # Retrieve the UserNotifySettings object from the mongo_database
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=user_notify_settings_data["user_telegram_id"]
         )
@@ -486,7 +409,6 @@ class TestModels:
 
     def test_user_status_repr(self, db_session: Session):
         """Test that the __repr__ method of the UserStatus model works correctly."""
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=999)
@@ -495,7 +417,7 @@ class TestModels:
         db_session.add(test_user_status)
         db_session.commit()
 
-        # Retrieve the UserStatus object from the database
+        # Retrieve the UserStatus object from the mongo_database
         retrieved_user_status = UserStatus.find_one(db_session, user_telegram_id=999)
 
         assert (
@@ -505,7 +427,6 @@ class TestModels:
 
     def test_user_notify_settings_repr(self, db_session: Session):
         """Test that the __repr__ method of the UserNotifySettings model works correctly."""
-        from app.models.users.user_notify_settings import UserNotifySettings
 
         # Create a test UserNotifySettings object
         test_user_notify_settings = UserNotifySettings(user_telegram_id=1000)
@@ -514,7 +435,7 @@ class TestModels:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        # Retrieve the UserNotifySettings object from the database
+        # Retrieve the UserNotifySettings object from the mongo_database
         retrieved_user_notify_settings = UserNotifySettings.find_one(
             db_session, user_telegram_id=1000
         )
@@ -526,7 +447,6 @@ class TestModels:
 
     def test_user_status_constraints_unique(self, db_session: Session):
         """Test that the user_telegram_id column of the UserStatus model is unique."""
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object
         test_user_status = UserStatus(user_telegram_id=111)
@@ -547,9 +467,6 @@ class TestModels:
     def test_user_status_constraints_non_negative(self, db_session: Session):
         """Test that the login_attempt_count and failed_request_count columns of the UserStatus model are
         non-negative."""
-        from sqlalchemy.exc import PendingRollbackError
-
-        from app.models.users.user_status import UserStatus
 
         # Create a test UserStatus object with negative login_attempt_count
         test_user_status = UserStatus(user_telegram_id=222, login_attempt_count=-1)

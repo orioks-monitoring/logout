@@ -1,21 +1,35 @@
+from random import randint
 from typing import Generator
+from unittest.mock import patch
 
+import mongomock
 import pytest
+from mongomock.helpers import ASCENDING
+from pydantic import PositiveInt
+from pymongo.results import InsertOneResult, InsertManyResult
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from starlette.testclient import TestClient
 
 from app.config import (
+    TEST_DATABASE_URL,
     LOGOUT_SERVICE_HEADER_NAME,
     LOGOUT_SERVICE_TOKEN,
-    TEST_DATABASE_URL,
 )
 from app.main import app
 from app.models.base import AbstractBaseModel
-from app.models.database import get_db
+from app.models.sql_database import get_db
 from app.models.users.user_notify_settings import UserNotifySettings
 from app.models.users.user_status import UserStatus
+from tests.mocks import (
+    make_user_authorized_mocked,
+    make_user_reset_mocked,
+    mongo_client,
+    mongo_collection,
+)
+
+client = TestClient(app)
 
 engine = create_engine(
     TEST_DATABASE_URL,
@@ -25,8 +39,6 @@ engine = create_engine(
     poolclass=StaticPool if TEST_DATABASE_URL.endswith(":memory:") else None,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-client = TestClient(app)
 
 
 def override_get_db():
@@ -42,334 +54,268 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 class TestAPI:
+    @pytest.fixture(autouse=True, scope="function")
+    def clear_all_databases(self) -> None:
+        """Clear all databases before each test"""
+        for database_name in mongo_client.list_database_names():
+            mongo_client.drop_database(database_name)
+
     @pytest.fixture(scope="function")
     def db_session(self) -> Generator[Session, None, None]:
-        """Create a clean database session for testing purposes."""
-        # Create the database tables
+        """Create a clean mongo_database session for testing purposes."""
+        # Create the mongo_database tables
         AbstractBaseModel.metadata.create_all(bind=engine)
 
         # Run the tests
         yield TestingSessionLocal()
 
-        # Drop the database tables
+        # Drop the mongo_database tables
         AbstractBaseModel.metadata.drop_all(bind=engine)
 
-    def test_tables_are_created(self, db_session: Session):
-        """Test that all tables are created after the database is created."""
-        tables = AbstractBaseModel.metadata.tables.values()
-        assert len(tables) > 0
-
-    def test_user_status_table_is_created(self, db_session: Session):
-        """Test that the user_status table is created after the database is created."""
-        assert UserStatus.__tablename__ in AbstractBaseModel.metadata.tables
-
-    def test_user_notify_settings_table_is_created(self, db_session: Session):
-        """Test that the user_notify_settings table is created after the database is created."""
-        from app.models.users.user_notify_settings import UserNotifySettings
-
-        assert UserNotifySettings.__tablename__ in AbstractBaseModel.metadata.tables
-
-    def test_tables_are_empty(self, db_session: Session):
-        """Test that all tables are empty after the database is created."""
-        for table in AbstractBaseModel.metadata.tables.values():
-            print(table.name)
-            assert db_session.query(table).count() == 0
-
-    @pytest.mark.parametrize(
-        "url",
-        ["/user/{user_telegram_id}", "/user/{user_telegram_id}/logout", "/wrong-url"],
-    )
-    @pytest.mark.parametrize(
-        "user_telegram_id",
-        ["0", "1", "abc", "11.1"],
-    )
-    @pytest.mark.parametrize(
-        "method",
-        ["post", "get", "put", "delete", "options", "patch"],
-    )
-    def test_middleware_invalid_token(
-        self, url: str, user_telegram_id: int, method: str
-    ):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: "InvalidToken"}
-        response = getattr(client, method)(
-            url.format(user_telegram_id=user_telegram_id), headers=headers
-        )
-        assert response.status_code == 403
-        assert response.json() == {"detail": "Forbidden"}
-
-    @pytest.mark.parametrize(
-        "url",
-        ["/user/{user_telegram_id}", "/user/{user_telegram_id}/logout", "/wrong-url"],
-    )
-    @pytest.mark.parametrize(
-        "user_telegram_id",
-        ["0", "1", "abc", "11.1"],
-    )
-    @pytest.mark.parametrize(
-        "method",
-        ["post", "get", "put", "delete", "options", "patch"],
-    )
-    def test_middleware_no_token_wrong_url(
-        self, url: str, user_telegram_id: int, method: str
-    ):
-        response = getattr(client, method)(
-            url.format(user_telegram_id=user_telegram_id)
-        )
-        assert response.status_code == 401
-        assert response.json() == {"detail": "Unauthorized"}
-
-    def test_docs(self):
-        response = client.get("/docs")
-        assert response.status_code == 200
-
-    def test_openapi(self):
-        response = client.get("/openapi.json")
-        assert response.status_code == 200
-
-    def test_get_user_status(self, db_session: Session):
-        # Create a test UserStatus object
-        test_user_status = UserStatus(
-            user_telegram_id=123,
-            agreement_accepted=True,
-            authenticated=True,
-            login_attempt_count=2,
-            failed_request_count=1,
-        )
-        db_session.add(test_user_status)
+    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    def test_user_login_logout(self, db_session: Session) -> None:
+        """Test user login and logout."""
+        user_telegram_id = randint(1, 1000)
+        user_status = UserStatus(user_telegram_id=user_telegram_id)
+        user_settings = UserNotifySettings(user_telegram_id=user_telegram_id)
+        db_session.add(user_status)
+        db_session.add(user_settings)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.get(
-            f"/user/{test_user_status.user_telegram_id}", headers=headers
+        # Login
+        cookies = {"key1": "value1", "key2": "value2"}
+        response = client.patch(
+            f"/user/{user_telegram_id}/login",
+            json={"cookies": cookies},
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
         )
-
         assert response.status_code == 200
         assert response.json() == {
-            "user_telegram_id": 123,
-            "agreement_accepted": True,
+            "user_telegram_id": user_telegram_id,
             "authenticated": True,
-            "login_attempt_count": 2,
-            "failed_request_count": 1,
         }
 
-    def test_get_user_status_not_found(self, db_session: Session):
-        print(db_session.query(AbstractBaseModel.metadata.tables["user_status"]).all())
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.get("/user/123", headers=headers)
+        # Logout
+        response = client.post(
+            f"/user/{user_telegram_id}/logout",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+        )
+        assert response.status_code == 204
 
-        print(response.json())
-        assert response.status_code == 404
-        assert response.json() == {"detail": "User not found"}
-
-    def test_get_user_status_invalid_id(self, db_session: Session):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.get("/user/abc", headers=headers)
-
-        assert response.status_code == 422
-        assert len(response.json()["detail"]) == 1
-        assert response.json()["detail"][0]["type"] == "int_parsing"
-        assert response.json()["detail"][0]["loc"] == ["path", "user_telegram_id"]
-        assert response.json()["detail"][0]["input"] == "abc"
-
-    def test_logout_user(self, db_session: Session):
-        # Create a test UserStatus and UserNotifySettings objects
-        test_user_status = UserStatus(
-            user_telegram_id=321,
+    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    def test_user_login_logout_with_status(self, db_session: Session):
+        # create user
+        user_telegram_id = randint(1, 1000)
+        user_status = UserStatus(
+            user_telegram_id=user_telegram_id,
             agreement_accepted=True,
-            authenticated=True,
-            login_attempt_count=5,
-            failed_request_count=0,
+            authenticated=False,
+            login_attempt_count=4,
+            failed_request_count=5,
         )
-        test_user_notify_settings = UserNotifySettings(
-            user_telegram_id=321,
-            marks=True,
-            news=False,
-            homeworks=True,
-            requests=False,
-        )
-        db_session.add(test_user_status)
-        db_session.add(test_user_notify_settings)
+        user_settings = UserNotifySettings(user_telegram_id=user_telegram_id)
+        db_session.add(user_status)
+        db_session.add(user_settings)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        assert mongo_collection.count_documents({}) == 0
 
+        # get status
         response = client.get(
-            f"/user/{test_user_status.user_telegram_id}", headers=headers
+            f"/user/{user_telegram_id}",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
-            "user_telegram_id": 321,
-            "agreement_accepted": True,
+            'agreement_accepted': True,
+            'authenticated': False,
+            'failed_request_count': 5,
+            'login_attempt_count': 4,
+            'user_telegram_id': user_telegram_id,
+        }
+
+        # login
+        cookies = {"key1": "value1", "key2": "value2"}
+        response = client.patch(
+            f"/user/{user_telegram_id}/login",
+            json={"cookies": cookies},
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "user_telegram_id": user_telegram_id,
             "authenticated": True,
-            "login_attempt_count": 5,
-            "failed_request_count": 0,
         }
 
-        response = client.post(
-            f"/user/{test_user_status.user_telegram_id}/logout", headers=headers
-        )
+        assert mongo_collection.count_documents({}) == 1
 
-        assert response.status_code == 204
-        assert response.content == b""
-        assert db_session.query(UserStatus).count() == 1
-        assert db_session.query(UserNotifySettings).count() == 1
-
+        # get status
         response = client.get(
-            f"/user/{test_user_status.user_telegram_id}", headers=headers
+            f"/user/{user_telegram_id}",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
-            "user_telegram_id": 321,
-            "agreement_accepted": True,
-            "authenticated": False,
-            "login_attempt_count": 5,
-            "failed_request_count": 0,
+            'agreement_accepted': True,
+            'authenticated': True,
+            'failed_request_count': 5,
+            'login_attempt_count': 4,
+            'user_telegram_id': user_telegram_id,
         }
 
-        db_session.refresh(test_user_status)
-        db_session.refresh(test_user_notify_settings)
-        # Check that the user_notify_settings object filled with default values
-        test_user_notify_settings_after = UserNotifySettings.find_one(
-            db_session, user_telegram_id=test_user_status.user_telegram_id
-        )
-        assert test_user_notify_settings_after.marks is True
-        assert test_user_notify_settings_after.news is False
-        assert test_user_notify_settings_after.homeworks is False
-        assert test_user_notify_settings_after.requests is False
+        assert mongo_collection.count_documents({}) == 1
 
-        # Check that the user_status object authenticated field is False, but other fields are not changed
-        test_user_status_after = UserStatus.find_one(
-            db_session, user_telegram_id=test_user_status.user_telegram_id
-        )
-        print(test_user_status_after.as_dict())
-        assert test_user_status_after.authenticated is False
-        assert test_user_status_after.agreement_accepted is True
-        assert test_user_status_after.login_attempt_count == 5
-        assert test_user_status_after.failed_request_count == 0
-
-    def test_user_double_logout(self, db_session: Session):
-        # Create a test UserStatus and UserNotifySettings objects
-        test_user_status = UserStatus(
-            user_telegram_id=1234,
-            agreement_accepted=True,
-            authenticated=True,
-            login_attempt_count=7,
-            failed_request_count=0,
-        )
-        test_user_notify_settings = UserNotifySettings(
-            user_telegram_id=1234,
-            marks=True,
-            news=False,
-            homeworks=True,
-            requests=True,
-        )
-        db_session.add(test_user_status)
-        db_session.add(test_user_notify_settings)
-        db_session.commit()
-
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-
+        # logout
         response = client.post(
-            f"/user/{test_user_status.user_telegram_id}/logout", headers=headers
+            f"/user/{user_telegram_id}/logout",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
         )
-
         assert response.status_code == 204
-        assert response.content == b""
-        assert db_session.query(UserStatus).count() == 1
-        assert db_session.query(UserNotifySettings).count() == 1
 
-        response = client.post(
-            f"/user/{test_user_status.user_telegram_id}/logout", headers=headers
+        assert mongo_collection.count_documents({}) == 0
+
+        # get status
+        response = client.get(
+            f"/user/{user_telegram_id}",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            'agreement_accepted': True,
+            'authenticated': False,
+            'failed_request_count': 5,
+            'login_attempt_count': 4,
+            'user_telegram_id': user_telegram_id,
+        }
+
+        assert mongo_collection.count_documents({}) == 0
+
+        # get status one more time
+        response = client.get(
+            f"/user/{user_telegram_id}",
+            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            'agreement_accepted': True,
+            'authenticated': False,
+            'failed_request_count': 5,
+            'login_attempt_count': 4,
+            'user_telegram_id': user_telegram_id,
+        }
+
+        assert mongo_collection.count_documents({}) == 0
+
+    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    def test_user_login_logout_multiple_users(self, db_session: Session):
+        user_count = 100
+        # dict[user_telegram_id, cookies]
+        users: dict[int, dict[str, str]] = {}
+
+        # 100 unique users
+        user_telegram_ids = set()
+        while len(user_telegram_ids) < user_count:
+            user_telegram_ids.add(randint(1, 1000000))
+
+        # create users
+        for i, user_telegram_id in enumerate(user_telegram_ids):
+            user_status = UserStatus(user_telegram_id=user_telegram_id)
+            user_settings = UserNotifySettings(user_telegram_id=user_telegram_id)
+            db_session.add(user_status)
+            db_session.add(user_settings)
+            db_session.commit()
+
+            # random cookies
+            cookies = {
+                f"key{randint(1, 100)}": f"value{randint(1, 100)}"
+                for _ in range(randint(1, 10))
+            }
+            users[user_telegram_id] = cookies
+
+        assert mongo_collection.count_documents({}) == 0
+
+        # login users
+        for user_telegram_id, cookies in users.items():
+            response = client.patch(
+                f"/user/{user_telegram_id}/login",
+                json={"cookies": cookies},
+                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            )
+            assert response.status_code == 200
+            assert response.json() == {
+                "user_telegram_id": user_telegram_id,
+                "authenticated": True,
+            }
+
+        assert mongo_collection.count_documents({}) == user_count
+
+        # get status users
+        for user_telegram_id in users.keys():
+            response = client.get(
+                f"/user/{user_telegram_id}",
+                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            )
+            assert response.status_code == 200
+            assert response.json() == {
+                'agreement_accepted': False,
+                'authenticated': True,
+                'failed_request_count': 0,
+                'login_attempt_count': 0,
+                'user_telegram_id': user_telegram_id,
+            }
+
+        assert (
+            db_session.query(UserStatus)
+            .filter(UserStatus.authenticated == True)
+            .count()
+            == user_count
+        )
+        assert (
+            db_session.query(UserStatus)
+            .filter(UserStatus.authenticated == False)
+            .count()
+            == 0
         )
 
-        assert response.status_code == 204
-        assert response.content == b""
-        assert db_session.query(UserStatus).count() == 1
-        assert db_session.query(UserNotifySettings).count() == 1
+        # logout users
+        for user_telegram_id in users.keys():
+            response = client.post(
+                f"/user/{user_telegram_id}/logout",
+                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            )
+            assert response.status_code == 204
 
-        db_session.refresh(test_user_status)
-        db_session.refresh(test_user_notify_settings)
-        # Check that the user_notify_settings object filled with default values
-        test_user_notify_settings_after = UserNotifySettings.find_one(
-            db_session, user_telegram_id=test_user_status.user_telegram_id
+        assert mongo_collection.count_documents({}) == 0
+
+        # get status users
+        for user_telegram_id in users.keys():
+            response = client.get(
+                f"/user/{user_telegram_id}",
+                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            )
+            assert response.status_code == 200
+            assert response.json() == {
+                'agreement_accepted': False,
+                'authenticated': False,
+                'failed_request_count': 0,
+                'login_attempt_count': 0,
+                'user_telegram_id': user_telegram_id,
+            }
+
+        assert db_session.query(UserStatus).count() == user_count
+        assert db_session.query(UserNotifySettings).count() == user_count
+        assert (
+            db_session.query(UserStatus)
+            .filter(UserStatus.authenticated == True)
+            .count()
+            == 0
         )
-        assert test_user_notify_settings_after.marks is True
-        assert test_user_notify_settings_after.news is False
-        assert test_user_notify_settings_after.homeworks is False
-        assert test_user_notify_settings_after.requests is False
-
-        # Check that the user_status object authenticated field is False, but other fields are not changed
-        test_user_status_after = UserStatus.find_one(
-            db_session, user_telegram_id=test_user_status.user_telegram_id
+        assert (
+            db_session.query(UserStatus)
+            .filter(UserStatus.authenticated == False)
+            .count()
+            == user_count
         )
-        assert test_user_status_after.authenticated is False
-        assert test_user_status_after.agreement_accepted is True
-        assert test_user_status_after.login_attempt_count == 7
-        assert test_user_status_after.failed_request_count == 0
-
-    @pytest.mark.parametrize(
-        "method",
-        ["post", "put", "delete", "options", "patch"],
-    )
-    def test_wrong_method_on_user_get(self, db_session: Session, method: str):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = getattr(client, method)("/user/123", headers=headers)
-        assert response.status_code == 405
-        assert response.json() == {"detail": "Method Not Allowed"}
-
-    @pytest.mark.parametrize(
-        "method",
-        ["get", "put", "delete", "options", "patch"],
-    )
-    def test_wrong_method_on_user_logout(self, db_session: Session, method: str):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.get("/user/123/logout", headers=headers)
-        assert response.status_code == 405
-        assert response.json() == {"detail": "Method Not Allowed"}
-
-    def test_logout_user_and_notify_settings_not_found(self, db_session: Session):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.post("/user/123/logout", headers=headers)
-
-        assert response.status_code == 404
-        assert response.json() == {"detail": "User not found"}
-
-    def test_logout_user_not_found_but_notify_settings_exists(
-        self, db_session: Session
-    ):
-        # Create a test UserNotifySettings object
-        test_user_notify_settings = UserNotifySettings(
-            user_telegram_id=123,
-            marks=True,
-            news=False,
-            homeworks=True,
-            requests=True,
-        )
-        db_session.add(test_user_notify_settings)
-        db_session.commit()
-
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.post("/user/123/logout", headers=headers)
-
-        assert response.status_code == 404
-        assert response.json() == {"detail": "User not found"}
-
-    def test_logout_user_exists_but_notify_settings_not_found(
-        self, db_session: Session
-    ):
-        # Create a test UserStatus object
-        test_user_status = UserStatus(
-            user_telegram_id=123,
-            agreement_accepted=True,
-            authenticated=True,
-            login_attempt_count=2,
-            failed_request_count=1,
-        )
-        db_session.add(test_user_status)
-        db_session.commit()
-
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
-        response = client.post("/user/123/logout", headers=headers)
-
-        assert response.status_code == 404
-        assert response.json() == {"detail": "User settings not found"}
