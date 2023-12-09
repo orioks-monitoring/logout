@@ -16,7 +16,7 @@ DeclarativeModelBase = declarative_base()
 
 
 def get_db() -> SessionLocal:
-    """Get database session. Use this function in FastAPI path operation functions. Injections are used."""
+    """Get mongo_database session. Use this function in FastAPI path operation functions. Injections are used."""
     database = SessionLocal()
     try:
         yield database
