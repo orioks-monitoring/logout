@@ -219,7 +219,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -258,7 +258,7 @@ class TestLogin:
         assert mongo_collection.find_one({})["user_telegram_id"] == user_telegram_id
         assert mongo_collection.find_one({})["_id"] is not None
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_without_header(self, db_session: Session):
         user_telegram_id = 1
         headers = {}
@@ -289,7 +289,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_header(self, db_session: Session):
         user_telegram_id = 1
         headers = {"wrong_header": "wrong_token"}
@@ -320,7 +320,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_token(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: "wrong_token"}
@@ -351,7 +351,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_user_id(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -382,7 +382,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_body(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -416,7 +416,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_cookies(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -452,7 +452,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_empty_cookies(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -483,7 +483,7 @@ class TestLogin:
         # mongo is empty
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_twice(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -543,7 +543,7 @@ class TestLogin:
         assert mongo_collection.find_one({})["user_telegram_id"] == user_telegram_id
         assert mongo_collection.find_one({})["_id"] is not None
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_twice_with_different_cookies(self, db_session: Session):
         user_telegram_id = 1
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -604,7 +604,7 @@ class TestLogin:
         assert mongo_collection.find_one({})["user_telegram_id"] == user_telegram_id
         assert mongo_collection.find_one({})["_id"] is not None
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_multiple_users(self, db_session: Session):
         user_count = 100
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
@@ -673,7 +673,7 @@ class TestLogin:
                 is not None
             )
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_one_by_one(self, db_session: Session):
         user_count = 100
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}

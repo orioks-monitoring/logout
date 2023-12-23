@@ -2,11 +2,7 @@ from random import randint
 from typing import Generator
 from unittest.mock import patch
 
-import mongomock
 import pytest
-from mongomock.helpers import ASCENDING
-from pydantic import PositiveInt
-from pymongo.results import InsertOneResult, InsertManyResult
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
@@ -77,8 +73,8 @@ class TestAPI:
         assert response.status_code == 200
         assert response.json() == {"status": "UP"}
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_user_login_logout(self, db_session: Session) -> None:
         """Test user login and logout."""
         user_telegram_id = randint(1, 1000)
@@ -108,8 +104,8 @@ class TestAPI:
         )
         assert response.status_code == 204
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_user_login_logout_with_status(self, db_session: Session):
         # create user
         user_telegram_id = randint(1, 1000)
@@ -213,8 +209,8 @@ class TestAPI:
 
         assert mongo_collection.count_documents({}) == 0
 
-    @patch("app.main.make_user_authorized", make_user_authorized_mocked)
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_user_login_logout_multiple_users(self, db_session: Session):
         user_count = 100
         # dict[user_telegram_id, cookies]
