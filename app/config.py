@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///mongo_database.sqlite3")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.sqlite3")
 
 
 LOGOUT_SERVICE_TOKEN = os.getenv("LOGOUT_SERVICE_TOKEN", "SecretToken")

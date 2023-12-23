@@ -34,6 +34,9 @@ class MongoHelper:
     async def delete_one(self, filter_by_dict: dict) -> DeleteResult:
         return await self.collection.delete_one(filter_by_dict)
 
+    async def delete_many(self, filter_by_dict: dict) -> DeleteResult:
+        return await self.collection.delete_many(filter_by_dict)
+
 
 class MongoContextManager:
     def __init__(
