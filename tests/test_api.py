@@ -10,8 +10,8 @@ from starlette.testclient import TestClient
 
 from app.config import (
     TEST_DATABASE_URL,
-    LOGOUT_SERVICE_HEADER_NAME,
-    LOGOUT_SERVICE_TOKEN,
+    LOGIN_LOGOUT_SERVICE_HEADER_NAME,
+    LOGIN_LOGOUT_SERVICE_TOKEN,
 )
 from app.main import app
 from app.models.base import AbstractBaseModel
@@ -89,7 +89,7 @@ class TestAPI:
         response = client.patch(
             f"/user/{user_telegram_id}/login",
             json={"cookies": cookies},
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -100,7 +100,7 @@ class TestAPI:
         # Logout
         response = client.post(
             f"/user/{user_telegram_id}/logout",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 204
 
@@ -126,7 +126,7 @@ class TestAPI:
         # get status
         response = client.get(
             f"/user/{user_telegram_id}",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -142,7 +142,7 @@ class TestAPI:
         response = client.patch(
             f"/user/{user_telegram_id}/login",
             json={"cookies": cookies},
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -155,7 +155,7 @@ class TestAPI:
         # get status
         response = client.get(
             f"/user/{user_telegram_id}",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -171,7 +171,7 @@ class TestAPI:
         # logout
         response = client.post(
             f"/user/{user_telegram_id}/logout",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 204
 
@@ -180,7 +180,7 @@ class TestAPI:
         # get status
         response = client.get(
             f"/user/{user_telegram_id}",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -196,7 +196,7 @@ class TestAPI:
         # get status one more time
         response = client.get(
             f"/user/{user_telegram_id}",
-            headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+            headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -243,7 +243,7 @@ class TestAPI:
             response = client.patch(
                 f"/user/{user_telegram_id}/login",
                 json={"cookies": cookies},
-                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+                headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
             )
             assert response.status_code == 200
             assert response.json() == {
@@ -257,7 +257,7 @@ class TestAPI:
         for user_telegram_id in users.keys():
             response = client.get(
                 f"/user/{user_telegram_id}",
-                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+                headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
             )
             assert response.status_code == 200
             assert response.json() == {
@@ -285,7 +285,7 @@ class TestAPI:
         for user_telegram_id in users.keys():
             response = client.post(
                 f"/user/{user_telegram_id}/logout",
-                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+                headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
             )
             assert response.status_code == 204
 
@@ -295,7 +295,7 @@ class TestAPI:
         for user_telegram_id in users.keys():
             response = client.get(
                 f"/user/{user_telegram_id}",
-                headers={LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN},
+                headers={LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN},
             )
             assert response.status_code == 200
             assert response.json() == {

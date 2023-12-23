@@ -4,6 +4,8 @@ from typing import NoReturn
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorClientSession
 from pymongo.results import InsertOneResult, DeleteResult
 
+from app.config import MONGODB_URL
+
 
 class MongoHelper:
     def __init__(
@@ -43,7 +45,7 @@ class MongoContextManager:
         self,
         database: str,
         collection: str,
-        url: str = "mongodb://admin:admin@localhost:27017",
+        url: str = MONGODB_URL,
     ) -> None:
         self.database = database
         self.collection = collection

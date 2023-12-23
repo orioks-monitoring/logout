@@ -12,8 +12,8 @@ from starlette.testclient import TestClient
 
 from app.config import (
     TEST_DATABASE_URL,
-    LOGOUT_SERVICE_HEADER_NAME,
-    LOGOUT_SERVICE_TOKEN,
+    LOGIN_LOGOUT_SERVICE_HEADER_NAME,
+    LOGIN_LOGOUT_SERVICE_TOKEN,
 )
 from app.main import app
 from app.models.base import AbstractBaseModel
@@ -135,7 +135,7 @@ class TestLogin:
             assert db_session.query(table).count() == 0
 
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         response = client.patch(
@@ -158,7 +158,7 @@ class TestLogin:
             assert db_session.query(table).count() == 0
 
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         # insert user_status
@@ -191,7 +191,7 @@ class TestLogin:
             assert db_session.query(table).count() == 0
 
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         # insert user_settings
@@ -222,7 +222,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -323,7 +323,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_token(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: "wrong_token"}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: "wrong_token"}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -354,7 +354,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_user_id(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -385,7 +385,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_body(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"wrong_body": "wrong_value"}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -419,7 +419,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_wrong_cookies(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": "wrong_value"}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -455,7 +455,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_with_empty_cookies(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {}}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -486,7 +486,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_twice(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body = {"cookies": {"example_cookie": "example_value"}}
 
         user_status = UserStatus(user_telegram_id=user_telegram_id, authenticated=False)
@@ -546,7 +546,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_twice_with_different_cookies(self, db_session: Session):
         user_telegram_id = 1
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         user_login_body_1 = {"cookies": {"example_cookie": "example_value_1"}}
         user_login_body_2 = {"cookies": {"example_cookie": "example_value_2"}}
 
@@ -607,7 +607,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_multiple_users(self, db_session: Session):
         user_count = 100
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
 
         map_user_telegram_id_to_cookies: dict[int, dict[str, str]] = {}
         for _ in range(user_count):
@@ -676,7 +676,7 @@ class TestLogin:
     @patch("app.routers.make_user_authorized", make_user_authorized_mocked)
     def test_login_user_one_by_one(self, db_session: Session):
         user_count = 100
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
 
         assert mongo_collection.count_documents({}) == 0
         assert db_session.query(UserStatus).count() == 0

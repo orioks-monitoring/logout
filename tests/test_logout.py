@@ -8,8 +8,8 @@ from sqlalchemy.pool import StaticPool
 from starlette.testclient import TestClient
 
 from app.config import (
-    LOGOUT_SERVICE_HEADER_NAME,
-    LOGOUT_SERVICE_TOKEN,
+    LOGIN_LOGOUT_SERVICE_HEADER_NAME,
+    LOGIN_LOGOUT_SERVICE_TOKEN,
     TEST_DATABASE_URL,
 )
 from app.main import app
@@ -93,7 +93,7 @@ class TestLogout:
     def test_middleware_invalid_token(
         self, url: str, user_telegram_id: int, method: str
     ):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: "InvalidToken"}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: "InvalidToken"}
         response = getattr(client, method)(
             url.format(user_telegram_id=user_telegram_id), headers=headers
         )
@@ -142,7 +142,7 @@ class TestLogout:
         db_session.add(test_user_status)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.get(
             f"/user/{test_user_status.user_telegram_id}", headers=headers
         )
@@ -158,14 +158,14 @@ class TestLogout:
 
     def test_get_user_status_not_found(self, db_session: Session):
         print(db_session.query(AbstractBaseModel.metadata.tables["user_status"]).all())
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.get("/user/123", headers=headers)
 
         assert response.status_code == 404
         assert response.json() == {"detail": "User doesn't exist in user_status table"}
 
     def test_get_user_status_invalid_id(self, db_session: Session):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.get("/user/abc", headers=headers)
 
         assert response.status_code == 422
@@ -195,7 +195,7 @@ class TestLogout:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
 
         response = client.get(
             f"/user/{test_user_status.user_telegram_id}", headers=headers
@@ -272,7 +272,7 @@ class TestLogout:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
 
         response = client.post(
             f"/user/{test_user_status.user_telegram_id}/logout", headers=headers
@@ -317,7 +317,7 @@ class TestLogout:
         ["post", "put", "delete", "options", "patch"],
     )
     def test_wrong_method_on_user_get(self, db_session: Session, method: str):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = getattr(client, method)("/user/123", headers=headers)
         assert response.status_code == 405
         assert response.json() == {"detail": "Method Not Allowed"}
@@ -328,14 +328,14 @@ class TestLogout:
         ["get", "put", "delete", "options", "patch"],
     )
     def test_wrong_method_on_user_logout(self, db_session: Session, method: str):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.get("/user/123/logout", headers=headers)
         assert response.status_code == 405
         assert response.json() == {"detail": "Method Not Allowed"}
 
     @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_logout_user_and_notify_settings_not_found(self, db_session: Session):
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.post("/user/123/logout", headers=headers)
 
         assert response.status_code == 404
@@ -356,7 +356,7 @@ class TestLogout:
         db_session.add(test_user_notify_settings)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.post("/user/123/logout", headers=headers)
 
         assert response.status_code == 404
@@ -377,7 +377,7 @@ class TestLogout:
         db_session.add(test_user_status)
         db_session.commit()
 
-        headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
+        headers = {LOGIN_LOGOUT_SERVICE_HEADER_NAME: LOGIN_LOGOUT_SERVICE_TOKEN}
         response = client.post("/user/123/logout", headers=headers)
 
         assert response.status_code == 404

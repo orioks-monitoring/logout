@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.config import LOGOUT_SERVICE_HEADER_NAME, LOGOUT_SERVICE_TOKEN
+from app.config import LOGIN_LOGOUT_SERVICE_HEADER_NAME, LOGIN_LOGOUT_SERVICE_TOKEN
 
 ALLOWED_PATH_WITHOUT_AUTH = ["/docs", "/openapi.json", "/health"]
 
@@ -27,8 +27,8 @@ class AuthValidationMiddleware(BaseHTTPMiddleware):
         if request.url.path in ALLOWED_PATH_WITHOUT_AUTH:
             logger.debug("Got allowed request path")
             return await call_next(request)
-        if token := request.headers.get(LOGOUT_SERVICE_HEADER_NAME, None):
-            if token != LOGOUT_SERVICE_TOKEN:
+        if token := request.headers.get(LOGIN_LOGOUT_SERVICE_HEADER_NAME, None):
+            if token != LOGIN_LOGOUT_SERVICE_TOKEN:
                 logger.error("Got invalid token: %s", token)
                 return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
