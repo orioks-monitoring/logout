@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse
 
 from app.config import LOGOUT_SERVICE_HEADER_NAME, LOGOUT_SERVICE_TOKEN
 
-ALLOWED_PATH_WITHOUT_AUTH = ["/docs", "/openapi.json"]
+ALLOWED_PATH_WITHOUT_AUTH = ["/docs", "/openapi.json", "/health"]
 
 
 logger = logging.getLogger(__name__)

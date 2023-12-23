@@ -13,6 +13,7 @@ from app.schemas import (
     UserStatusSchema,
     UserLoginBodySchema,
     UserStatusAuthenticatedSchema,
+    AppStatusSchema,
 )
 from app.utils.utils import get_user_status_and_user_settings_by_id_with_raise
 
@@ -24,6 +25,11 @@ app = FastAPI(
 app.add_middleware(AuthValidationMiddleware)
 
 logger = logging.getLogger(__name__)
+
+
+@app.get("/health")
+async def health() -> AppStatusSchema:
+    return AppStatusSchema(status="UP")
 
 
 @app.get("/user/{user_telegram_id}")

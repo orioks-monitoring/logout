@@ -72,6 +72,11 @@ class TestAPI:
         # Drop the mongo_database tables
         AbstractBaseModel.metadata.drop_all(bind=engine)
 
+    def test_health(self):
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "UP"}
+
     @patch("app.main.make_user_authorized", make_user_authorized_mocked)
     @patch("app.main.make_user_reset", make_user_reset_mocked)
     def test_user_login_logout(self, db_session: Session) -> None:
