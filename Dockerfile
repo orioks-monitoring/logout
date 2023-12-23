@@ -7,8 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-        pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache pip wheel --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
+
 
 # App stage
 FROM python:3.11-slim as app
@@ -17,13 +17,15 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
-ADD app app
-ADD run.py run.py
-ADD requirements.txt requirements.txt
-ADD entrypoint.sh entrypoint.sh
+COPY app app
+COPY run.py run.py
+COPY requirements.txt requirements.txt
+COPY entrypoint.sh entrypoint.sh
 
-RUN chmod 700 entrypoint.sh
-RUN pip install -r requirements.txt
+COPY --from=builder /usr/src/app/wheels /wheels
+RUN --mount=type=cache,target=/root/.cache pip install /wheels/*
 
 HEALTHCHECK --interval=5s --timeout=3s --retries=3 CMD curl --fail http://localhost:8000/health || exit 1
+
+RUN chmod 700 entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]
