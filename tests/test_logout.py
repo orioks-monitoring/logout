@@ -1,7 +1,6 @@
 from typing import Generator
 from unittest.mock import patch
 
-import mongomock
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -78,7 +77,7 @@ class TestLogout:
             print(table.name)
             assert db_session.query(table).count() == 0
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     @pytest.mark.parametrize(
         "url",
         ["/user/{user_telegram_id}", "/user/{user_telegram_id}/logout", "/wrong-url"],
@@ -101,7 +100,7 @@ class TestLogout:
         assert response.status_code == 403
         assert response.json() == {"detail": "Forbidden"}
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     @pytest.mark.parametrize(
         "url",
         ["/user/{user_telegram_id}", "/user/{user_telegram_id}/logout", "/wrong-url"],
@@ -175,7 +174,7 @@ class TestLogout:
         assert response.json()["detail"][0]["loc"] == ["path", "user_telegram_id"]
         assert response.json()["detail"][0]["input"] == "abc"
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_logout_user(self, db_session: Session):
         # Create a test UserStatus and UserNotifySettings objects
         test_user_status = UserStatus(
@@ -252,7 +251,7 @@ class TestLogout:
         assert test_user_status_after.login_attempt_count == 5
         assert test_user_status_after.failed_request_count == 0
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_user_double_logout(self, db_session: Session):
         # Create a test UserStatus and UserNotifySettings objects
         test_user_status = UserStatus(
@@ -323,7 +322,7 @@ class TestLogout:
         assert response.status_code == 405
         assert response.json() == {"detail": "Method Not Allowed"}
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     @pytest.mark.parametrize(
         "method",
         ["get", "put", "delete", "options", "patch"],
@@ -334,7 +333,7 @@ class TestLogout:
         assert response.status_code == 405
         assert response.json() == {"detail": "Method Not Allowed"}
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_logout_user_and_notify_settings_not_found(self, db_session: Session):
         headers = {LOGOUT_SERVICE_HEADER_NAME: LOGOUT_SERVICE_TOKEN}
         response = client.post("/user/123/logout", headers=headers)
@@ -342,7 +341,7 @@ class TestLogout:
         assert response.status_code == 404
         assert response.json() == {"detail": "User doesn't exist in user_status table"}
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_logout_user_not_found_but_notify_settings_exists(
         self, db_session: Session
     ):
@@ -363,7 +362,7 @@ class TestLogout:
         assert response.status_code == 404
         assert response.json() == {"detail": "User doesn't exist in user_status table"}
 
-    @patch("app.main.make_user_reset", make_user_reset_mocked)
+    @patch("app.routers.make_user_reset", make_user_reset_mocked)
     def test_logout_user_exists_but_notify_settings_not_found(
         self, db_session: Session
     ):

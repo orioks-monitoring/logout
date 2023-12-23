@@ -1,4 +1,10 @@
+from typing import Literal
+
 from pydantic import BaseModel, PositiveInt
+
+
+class AppStatusSchema(BaseModel):
+    status: Literal["UP"]
 
 
 class UserStatusSchema(BaseModel):

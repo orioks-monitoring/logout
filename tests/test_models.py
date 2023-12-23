@@ -1,9 +1,6 @@
 from typing import Generator
-from unittest.mock import patch
 
-import mongomock
 import pytest
-from pydantic import PositiveInt
 from sqlalchemy import Column, create_engine
 from sqlalchemy.exc import PendingRollbackError
 from sqlalchemy.orm import Session, sessionmaker
