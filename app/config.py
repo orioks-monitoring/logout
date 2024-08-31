@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.sqlite3")
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://admin:admin@localhost:27017")
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017?replicaSet=rs0")
 
 LOGIN_LOGOUT_SERVICE_TOKEN = os.getenv("LOGIN_LOGOUT_SERVICE_TOKEN", "SecretToken")
 LOGIN_LOGOUT_SERVICE_HEADER_NAME = "x-auth-token"

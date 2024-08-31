@@ -19,19 +19,19 @@ async def make_user_authorized_mocked(
     *,
     refresh_after_commit: bool = False,
 ) -> None:
-    user_status.authenticated = True
-    db_session.add(user_status)
-    db_session.commit()
-
-    if refresh_after_commit:
-        db_session.refresh(user_status)
-
     # Mocked behavior for the MongoDB insertion
     mongo_collection.insert_one(
         {"user_telegram_id": user_telegram_id, "cookies": cookies}
     )
     # create index for user_telegram_id
     mongo_collection.create_index([('user_telegram_id', ASCENDING)], unique=True)
+
+    user_status.authenticated = True
+    db_session.add(user_status)
+    db_session.commit()
+
+    if refresh_after_commit:
+        db_session.refresh(user_status)
 
 
 async def make_user_reset_mocked(
@@ -42,6 +42,9 @@ async def make_user_reset_mocked(
     *,
     refresh_after_commit: bool = False,
 ) -> None:
+    # Mocked behavior for the MongoDB deletion
+    mongo_collection.delete_one({"user_telegram_id": user_telegram_id})
+
     user_status.authenticated = False
     db_session.add(user_status)
     user_settings.fill(user_telegram_id=user_telegram_id)
@@ -51,9 +54,6 @@ async def make_user_reset_mocked(
     if refresh_after_commit:
         db_session.refresh(user_status)
         db_session.refresh(user_settings)
-
-    # Mocked behavior for the MongoDB deletion
-    mongo_collection.delete_one({"user_telegram_id": user_telegram_id})
 
 
 def make_user_reset_without_mongo_deletion_mocked(

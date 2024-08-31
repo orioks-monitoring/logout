@@ -21,6 +21,13 @@ async def make_user_reset(
     """
     Transactional function for reset user status and user notify settings.
     """
+    async with MongoContextManager("users_data", "cookies") as mongo:
+        await mongo.delete_one({"user_telegram_id": user_telegram_id})
+
+        mongo.database = mongo.client.get_database("tracking_data")
+        for collection_name in ("marks", "news", "homeworks", "requests"):
+            mongo.collection = mongo.database.get_collection(collection_name)
+            await mongo.delete_one({"id": user_telegram_id})
 
     user_status.authenticated = False
     db_session.add(user_status)
@@ -32,15 +39,6 @@ async def make_user_reset(
         db_session.refresh(user_status)
         db_session.refresh(user_settings)
 
-    async with MongoContextManager("users_data", "cookies") as mongo:
-        await mongo.delete_one({"user_telegram_id": user_telegram_id})
-
-    for collection_name in ("marks", "news", "homeworks", "requests"):
-        async with MongoContextManager(
-            database="tracking_data", collection=collection_name
-        ) as mongo:
-            await mongo.delete_many({"id": user_telegram_id})
-
 
 async def make_user_authorized(
     db_session: Session,
@@ -50,18 +48,18 @@ async def make_user_authorized(
     *,
     refresh_after_commit: bool = False,
 ) -> None:
-    user_status.authenticated = True
-    db_session.add(user_status)
-    db_session.commit()
-
-    if refresh_after_commit:
-        db_session.refresh(user_status)
-
     async with MongoContextManager("users_data", "cookies") as mongo:
         await mongo.insert_one(
             {"user_telegram_id": user_telegram_id, "cookies": cookies}
         )
         # create index for user_telegram_id
         await mongo.collection.create_index(
-            [('user_telegram_id', ASCENDING)], unique=True
+            [("user_telegram_id", ASCENDING)], unique=True
         )
+
+    user_status.authenticated = True
+    db_session.add(user_status)
+    db_session.commit()
+
+    if refresh_after_commit:
+        db_session.refresh(user_status)
